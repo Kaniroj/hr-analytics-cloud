@@ -14,4 +14,4 @@ select
 from src_employer
 group by employer_name
 
-### --This model creates a dimension table for employers related to job postings.
+ --This model creates a dimension table for employers related to job postings.

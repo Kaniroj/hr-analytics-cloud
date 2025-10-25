@@ -1,17 +1,29 @@
-SELECT 'IT' AS category, municipality, occupation_name, COUNT(*) AS num_ads
-FROM staging.job_ads_it
-GROUP BY 1, 2, 3
+WITH all_ads AS (
 
-UNION ALL
+  SELECT 'IT' AS category, occupation_name
+  FROM staging.job_ads_it
 
-SELECT 'Media' AS category, municipality, occupation_name, COUNT(*) AS num_ads
-FROM staging.job_ads_media
-GROUP BY 1, 2, 3
+  UNION ALL
 
-UNION ALL
+  SELECT 'Media' AS category, occupation_name
+  FROM staging.job_ads_media
 
-SELECT 'Bygg' AS category, municipality, occupation_name, COUNT(*) AS num_ads
-FROM staging.job_ads_bygg
-GROUP BY 1, 2, 3
+  UNION ALL
 
-ORDER BY num_ads DESC;
+  SELECT 'Bygg' AS category, occupation_name
+  FROM staging.job_ads_bygg
+
+  UNION ALL
+
+  SELECT 'Pedagogik' AS category, occupation_name
+  FROM staging.job_ads_pedagogik
+
+)
+
+SELECT
+  category,
+  occupation_name,
+  COUNT(*) AS num_ads
+FROM all_ads
+GROUP BY category, occupation_name
+ORDER BY num_ads DESC

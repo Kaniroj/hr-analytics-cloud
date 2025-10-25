@@ -9,4 +9,4 @@ select
 from src_auxilliary_attributes
 group by auxilliary_id
 
-### --This model creates a dimension table for auxiliary attributes related to job postings.
+ --This model creates a dimension table for auxiliary attributes related to job postings.
