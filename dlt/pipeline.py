@@ -1,57 +1,76 @@
-
-import os
-import requests
 import dlt
-from datetime import datetime, timedelta
+import requests
+import json
 
-# سه رشته‌ی شغلی انتخابی برای نمونه
-OCCUPATION_TERMS = os.getenv("OCCUPATION_TERMS", "data,it|vård,omsorg|bygg").split("|")
+dlt.config["load.truncate_staging_dataset"] = True
 
-# تابعی برای گرفتن آگهی‌ها از JobTech API
-def fetch_job_ads(search_term: str, days_back: int = 7, limit: int = 500):
-    """
-    دریافت آگهی‌ها از API در بازه زمانی مشخص.
-    """
-    base_url = "https://jobsearch.api.jobtechdev.se/search"
-    params = {
-        "q": search_term,
-        "limit": limit,
-        "published-after": (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    }
-    response = requests.get(base_url, params=params, timeout=30)
-    response.raise_for_status()
-    data = response.json()
-    return data.get("hits", [])
+query = ""
+table_name = "job_ads"
+occupation_fields = ("j7Cq_ZJe_GkT", "9puE_nYg_crq", "MVqp_eS8_kDZ")
+params = {"q": query, "limit": 100, "occupation-field": occupation_fields}
 
-# منبع (resource) برای dlt
-@dlt.resource(name="job_ads", write_disposition="append")
-def job_ads():
-    """
-    داده‌های آگهی‌های شغلی را از JobTech API استخراج می‌کند.
-    """
-    for term in OCCUPATION_TERMS:
-        results = fetch_job_ads(term)
-        for ad in results:
-            yield {
-                "occupation_field": term,
-                "ad_id": ad.get("id"),
-                "headline": ad.get("headline"),
-                "employer": (ad.get("employer") or {}).get("name"),
-                "municipality": (ad.get("workplace_addresses") or [{}])[0].get("municipality"),
-                "employment_type": ad.get("employment_type"),
-                "publication_date": ad.get("publication_date"),
-                "source_url": ad.get("webpage_url"),
-            }
+def _get_ads(url_for_search, params):
+    headers = {"accept": "application/json"}
+    response = requests.get(url_for_search, headers=headers, params=params)
+    response.raise_for_status()  # check for http errors
+    return json.loads(response.content.decode("utf8"))
 
-# پیکربندی dlt و مقصد DuckDB
-@dlt.pipeline(
-    pipeline_name="jobtech_to_duckdb",
-    destination="duckdb",
-    dataset_name="landing"
-)
-def pipeline():
-    pipeline.run(job_ads())
 
-if __name__ == "__main__":
-    pipeline()
-    print("✅ داده‌ها با موفقیت در warehouse.duckdb ذخیره شدند.")
+@dlt.resource(table_name= "job_ads",write_disposition="append")
+def jobsearch_resource(params):
+    url = "https://jobsearch.api.jobtechdev.se"
+    url_for_search = f"{url}/search"
+    limit = params.get("limit", 100)
+    offset = 0
+
+    while True:
+        # build this page’s params
+        page_params = dict(params, offset=offset)
+        data = _get_ads(url_for_search, page_params)
+
+        hits = data.get("hits", [])
+        if not hits:
+            # no more results
+            break
+
+        # yield each ad on this page
+        for ad in hits:
+            yield ad
+
+        # if fewer than a full page was returned, we’re done
+        if len(hits) < limit or offset > 1900:
+            break
+
+        offset += limit
+
+@dlt.source
+def jobsearch_source():
+    
+    return jobsearch_resource(params)
+
+
+#def run_pipeline(query, table_name, occupation_fields):
+    # pipeline = dlt.pipeline(
+    #     pipeline_name="HRpipeline",
+    #     destination="snowflake",
+    #     dataset_name="staging",
+ #   )
+
+    # for occupation_field in occupation_fields:
+    #     params = {"q": query, "limit": 100, "occupation-field": occupation_field}
+    #     load_info = pipeline.run(
+    #         jobsearch_resource(params=params), table_name=table_name
+    #     )
+    #     print(f"Occupation field: {occupation_field}")
+    #     print(load_info)
+
+
+
+
+
+    # Bygg och anläggning, "Kultur, media, design", "Pedagogik"
+    # run_pipeline("", "job_ads", ("j7Cq_ZJe_GkT", "9puE_nYg_crq", "MVqp_eS8_kDZ"))
+    
+ 
+
+   
