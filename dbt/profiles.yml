@@ -1,0 +1,7 @@
+default:
+  outputs:
+    dev:
+      type: duckdb
+      path: ../dlt/jobtech_to_duckdb.duckdb
+      schema: staging
+  target: dev
