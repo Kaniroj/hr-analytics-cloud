@@ -1,45 +1,39 @@
 from dagster import job, op
 import subprocess
-import dlt
 import sys
 import os
 
-# اضافه کردن مسیر DLT برای ایمپورت
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "dlt"))
-from pipeline import jobsearch_source
-
-# مسیر پروژه DBT
-DBT_PROJECT_PATH = os.path.join(os.path.dirname(__file__), "..", "dbt")
-
+# مرحله ۱: اجرای DLT pipeline
 @op
 def run_dlt_pipeline():
-    """اجرای pipeline DLT و بازگرداندن نتیجه"""
-    pipe = dlt.pipeline(
-        pipeline_name="jobtech_to_duckdb",
-        destination="duckdb",
-        dataset_name="staging",
+    print("🚀 Running DLT pipeline...")
+    result = subprocess.run(
+        [sys.executable, "dlt/pipeline.py"],
+        capture_output=True,
+        text=True
     )
-    load_info = pipe.run(jobsearch_source())
-    print("✅ داده‌ها از JobTech API گرفته شدند و در DuckDB ذخیره شدند.")
-    return load_info
+    print(result.stdout)
+    if result.returncode != 0:
+        raise Exception(f"DLT pipeline failed:\n{result.stderr}")
+    return "✅ DLT pipeline completed successfully"
 
+# مرحله ۲: اجرای DBT transformations
 @op
-def run_dbt_transformations():
-    """اجرای dbt run برای تبدیل داده‌ها در DuckDB"""
-    print("🚀 اجرای DBT transformations...")
-    try:
-        subprocess.run(
-            ["dbt", "run"],
-            cwd=DBT_PROJECT_PATH,
-            check=True,
-            shell=True
-        )
-        print("✅ DBT transformations با موفقیت انجام شدند.")
-    except subprocess.CalledProcessError as e:
-        print("❌ خطا در اجرای DBT:", e)
-        raise
+def run_dbt_transformations(context):
+    print("🏗️ Running DBT transformations...")
+    dbt_dir = os.path.join(os.getcwd(), "dbt")
+    result = subprocess.run(
+        ["dbt", "run"],
+        cwd=dbt_dir,
+        capture_output=True,
+        text=True
+    )
+    context.log.info(result.stdout)
+    if result.returncode != 0:
+        raise Exception(f"DBT run failed:\n{result.stderr}")
+    return "✅ DBT models executed successfully"
 
+# تعریف job اصلی Dagster
 @job
 def hr_pipeline():
-    """Pipeline کامل شامل DLT + DBT"""
     run_dbt_transformations(run_dlt_pipeline())
