@@ -1,0 +1,11 @@
+dlt
+duckdb
+dbt-core
+dbt-duckdb
+dagster
+dagster-webserver
+pandas
+pyarrow
+python-dotenv
+requests
+streamlit
