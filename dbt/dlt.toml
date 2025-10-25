@@ -1,0 +1,5 @@
+[runtime]
+log_level = "INFO"
+
+[destination.duckdb]
+filepath = "./warehouse.duckdb"
