@@ -19,8 +19,10 @@ def run_dlt_pipeline():
 
 # مرحله ۲: اجرای DBT transformations
 @op
-def run_dbt_transformations(context):
-    print("🏗️ Running DBT transformations...")
+def run_dbt_transformations(context, dlt_result: str):
+    context.log.info("🏗️ Running DBT transformations...")
+    context.log.info(f"Previous step output: {dlt_result}")
+
     dbt_dir = os.path.join(os.getcwd(), "dbt")
     result = subprocess.run(
         ["dbt", "run"],
